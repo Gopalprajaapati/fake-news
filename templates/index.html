@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel News Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .heading {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .sub-heading {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+        .search-box-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            width: 60%;
+            padding: 10px;
+            font-size: 1.1rem;
+            margin-right: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        .search-button {
+            padding: 10px 20px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        .prediction {
+            font-size: 1.5rem;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .prediction.real {
+            background-color: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 5px;
+        }
+        .prediction.fake {
+            background-color: #dc3545;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 5px;
+        }
+        .news-item {
+            display: flex;
+            background: white;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            align-items: center;
+        }
+        .news-item img {
+            width: 150px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 20px;
+        }
+        .news-item-content {
+            flex: 1;
+        }
+        .news-item h3 {
+            font-size: 1.8rem;
+            color: #007bff;
+        }
+        .news-item p {
+            font-size: 1rem;
+            color: #555;
+        }
+        .related {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .link {
+            color: #007bff;
+            text-decoration: none;
+            margin-top: 10px;
+            display: inline-block;
+            font-weight: bold;
+        }
+        .news-item .link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Heading for the page -->
+    <div class="heading">Search for News from Excel File</div>
+    
+    <!-- Sub-heading for clarity -->
+    <div class="sub-heading">Enter a query and get articles with details from the Excel file.</div>
+    
+    <!-- Search Box and Button -->
+    <div class="search-box-container">
+        <input type="text" id="searchQuery" class="search-box" placeholder="Enter news title or description" />
+        <button class="search-button" onclick="searchNews()">Search</button>
+    </div>
+
+    <!-- Prediction Display -->
+    <div id="predictionResult" class="prediction"></div>
+
+    <!-- Heading for 98% Match Articles -->
+    <div id="relatedArticlesHeading" class="related"></div>
+
+    <!-- Search Results -->
+   <center><h2>Releted artical</h2></center>  
+    <div id="results"></div>
+    
+</div>
+
+<script>
+    function searchNews() {
+        const query = document.getElementById('searchQuery').value;
+        
+        if (!query.trim()) {
+            alert('Please enter a search query.');
+            return;
+        }
+
+        fetch('/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ query: query })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const predictionResult = document.getElementById('predictionResult');
+            const resultsDiv = document.getElementById('results');
+            const relatedArticlesHeading = document.getElementById('relatedArticlesHeading');
+            resultsDiv.innerHTML = '';  // Clear previous results
+
+            if (data.message) {
+                resultsDiv.innerHTML = `<p>Sorry, no articles found matching "${query}".</p>`;
+                return;
+            }
+
+            // Display Real or Fake Prediction
+            if (data.length > 0) {
+                predictionResult.innerHTML = `Prediction: ${data[0].prediction === "Real News" ? '<span class="real">Real News</span>' : '<span class="fake">Fake News</span>'}`;
+
+                // Display 98% Match Articles Heading
+                relatedArticlesHeading.innerHTML = "98% Match Articles";
+
+                let relatedArticles = [];
+                let otherArticles = [];
+                
+                // Separate related and other articles based on match score
+                data.forEach(item => {
+                    const matchScore = item.match_score || 0;
+
+                    const articleData = `
+                        <div class="news-item">
+                            <img src="${item.image_url}" alt="Article Image">
+                            <div class="news-item-content">
+                                <h3>${item.title}</h3>
+                                <p>${item.description}</p>
+                                <div class="prediction ${item.prediction === "Real News" ? 'real' : 'fake'}">${item.prediction}</div>
+                                <a href="${item.link}" class="link" target="_blank">Read more</a>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (matchScore >= 98) {
+                        relatedArticles.push(articleData);  // Related articles first
+                    } else {
+                        otherArticles.push(articleData);  // Rest of the articles
+                    }
+                });
+
+                // Combine related and other articles and display
+                resultsDiv.innerHTML = relatedArticles.join('') + otherArticles.join('');
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
